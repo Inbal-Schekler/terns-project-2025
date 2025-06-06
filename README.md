@@ -62,7 +62,10 @@ This process associate tracks to the tagged terns and after that create all feat
 ## Running the Algorithm
 To run the algorithm, follow these steps to execute each notebook in the correct order.
 
-### 1. run_video_converter.ipynb Notebook: Video-to-Image Conversion and Position Categorization
+### Downloading Scans
+To automatically download scans from both cameras twice a day, run extract_scans_auto.py in the ConvertVideoToImage directory.
+
+### 1. run_video_converter_2025.ipynb Notebook: Video-to-Image Conversion and Position Categorization
 
 This notebook converts video scans captured at the colony into images and detects camera switches to categorize the images by position. It supports a conversion of multiple scans within a video, organizing them into separate directories.
 
@@ -74,7 +77,7 @@ This notebook converts video scans captured at the colony into images and detect
 3. Specify the following settings in the tours_details.json file:
    - **videos_dir**: Path to the videos directory.
    - **images_dir**: Path to the output images directory.
-4. Open the run_video_converter.ipynb notebook.
+4. Open the run_video_converter_2025.ipynb notebook.
 5. Run all cells.
 
 ### 2. yolo_runner.ipynb Notebook: YOLO Object Detection on Images
