@@ -81,6 +81,14 @@ The notebook also visualizes all flag footprints on the drone image (saved as `f
 
 ---
 
+## Flag Coverage — Final Result
+
+The image below shows all 47 flag footprints projected onto the colony drone image, after the 2026 recalibration. Each colored rectangle represents the camera's field of view at that preset position.
+
+![Flags on drone image](flags_on_drone_2026.png)
+
+---
+
 ## Camera Scan Automation
 
 The south camera performs two full scans per day. Each scan consists of two sequential tours:

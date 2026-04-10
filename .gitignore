@@ -1,6 +1,7 @@
 *.png
-*.jpg      
+*.jpg
 *.jpeg
+!RealCoordinatesCalculator/flags_on_drone_2026.png
 
 *.txt
 *.xml
