@@ -53,7 +53,7 @@ images_list = glob.glob(os.path.join(images_dir_path, "*.jpg"))
 images_list = sorted(images_list, key=dir_utils.extract_flag_and_image_numbers)
 
 # Load a model
-model = YOLO(r'/content/drive/MyDrive/tern_project/Eyal/YoloDetector/TrainedVersions/Terns Detection 3.0.v3i.yolov8/terns-detection/weights/best.pt')  # pretrained YOLOv8n model
+model = YOLO(r'/content/drive/MyDrive/tern_project/Chicks/terns-project-chick/YoloDetector/TrainedVersions/Terns Detection 3.0.v3i.yolov8/terns-detection_from_scratch_50_1024_yolov8x/weights/best.pt')  # pretrained YOLOv8n model
 
 for start in range(0, len(images_list), images_chunk_size):
     end = start + images_chunk_size

@@ -10,16 +10,15 @@ class RealCoordinatesCalculator:
     def __init__(self):
         # Load the configuration file
         config = configparser.ConfigParser()
-        # config_path = ".\config.ini"
-        config_path = "/content/drive/MyDrive/tern_project/Eyal/RealCoordinatesCalculator/config.ini"
+        config_path = "/content/drive/MyDrive/tern_project/Eyal/RealCoordinatesCalculator/real_coordinates_calculator.ini"
         config.read(config_path)
 
         # Load the tours details to determine each flag to which camera belongs
         with open(config['general']['tours_details_path'], 'r', encoding='utf-8') as config_file:
             tours_config = json.load(config_file)
 
-        self.cam181_flags = self._create_flags_in_tour_set(tours_config, 'south_cam')
-        self.cam191_flags = self._create_flags_in_tour_set(tours_config, 'north_cam')
+        self.cam181_flags = self._create_flags_in_tour_set(tours_config, '181')
+        self.cam191_flags = self._create_flags_in_tour_set(tours_config, '191')
 
         self.ptz_modi_dir = config['general']['ptz_modi_file']
         # Load both cameras pre-calculated PTZ modification files
@@ -27,8 +26,6 @@ class RealCoordinatesCalculator:
             '181': self._read_ptz_modi_file('181'),
             '191': self._read_ptz_modi_file('191')
         }
-        # Load the drone image
-        self.drone_img = cv2.imread(config['general']['drone_img_path'])
         # Conversion from cm to pixel in the drone image
         self.s = float(config['general']['s'])
         self.s_cm = 1 / self.s
@@ -63,7 +60,7 @@ class RealCoordinatesCalculator:
     # This function read the PTZ modification CSV file
     def _read_ptz_modi_file(self, cam_number):
         rel_column = ['ptz_num', 'pitch', 'yaw', 'f']
-        ptz_modi_file_path = f'{self.ptz_modi_dir}/PTZ_modi_Cam_Values_{cam_number}_mod.txt'
+        ptz_modi_file_path = f'{self.ptz_modi_dir}/PTZCamValues{cam_number}_mod.txt'
         print(f'Loading file {ptz_modi_file_path}...')
         try:
             # Read PTZ modification file    
