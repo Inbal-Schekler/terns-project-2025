@@ -6,19 +6,28 @@
 *.txt
 *.xml
 *.json
+!ConvertVideoToImage/tours_details.json
+!RealCoordinatesCalculator/overlap_areas.json
 
 *.pyc
 
 desktop.ini
 
-for_inbal/     
+for_inbal/
 TernsTags/
 TrackingTerns/TrackingResult/
+BreedingBirds/TrackingTerns/TrackingResult/
 YoloDetector/test_images/
 YoloDetector/TrainedVersions/
 YoloDetector/TrainingData/
 YoloDetector/TrainingVersions/
 YoloDetector/YoloResults/
-# Camera credentials
+BreedingBirds/YoloDetector/test_images/
+BreedingBirds/YoloDetector/TrainedVersions/
+BreedingBirds/YoloDetector/TrainingData/
+BreedingBirds/YoloDetector/TrainingVersions/
+BreedingBirds/YoloDetector/YoloResults/
+
+# Camera credentials — never commit
 *.ini
 RealCoordinatesCalculator/new_camera.ini

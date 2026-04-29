@@ -2,9 +2,11 @@
 External scan controller for south PTZ camera (camera 181).
 -----------------------------------------------------------
 Runs both tour groups sequentially at exact timing using ONVIF GotoPreset.
+Performs TWO complete passes per session, with a rest gap between them,
+so the video file contains two extractable tours.
 
 Usage:
-  python run_scan.py          -- runs the full scan (Tour1 then Tour2) once right now
+  python run_scan.py          -- runs the full scan (twice) right now
   python run_scan.py --dry    -- print the preset sequence without moving the camera
 
 Set up via Windows Task Scheduler to trigger at 10:01:50 and 15:01:50 every day.
@@ -30,8 +32,9 @@ TOUR2_PRESETS = [
     1,
 ]
 
-DWELL_SECONDS = 15        # how long to stay at each preset
-GAP_SECONDS   = 10        # pause between Tour1 end and Tour2 start
+DWELL_SECONDS      = 15    # how long to stay at each preset
+GAP_SECONDS        = 10    # pause between Tour1 end and Tour2 start (within one scan)
+GAP_BETWEEN_SCANS  = 329   # rest between the two complete scans (matches magin_between_tours in tours_details.json)
 
 NEW_CAMERA_INI = 'new_camera.ini'
 ONVIF_PROFILE  = 'MediaProfile00000'
@@ -143,4 +146,17 @@ if __name__ == '__main__':
             print(f'Waiting {wait}s until :{TARGET_SECOND:02d}...', flush=True)
             time.sleep(wait)
 
+    # First complete scan
+    print('\n=== SCAN PASS 1 of 2 ===', flush=True)
     run_full_scan(dry_run=dry_run)
+
+    # Rest between the two scans (must match magin_between_tours in tours_details.json)
+    print(f'\n--- Resting {GAP_BETWEEN_SCANS}s ({GAP_BETWEEN_SCANS//60}m {GAP_BETWEEN_SCANS%60}s) before second pass ---', flush=True)
+    if not dry_run:
+        time.sleep(GAP_BETWEEN_SCANS)
+
+    # Second complete scan
+    print('\n=== SCAN PASS 2 of 2 ===', flush=True)
+    run_full_scan(dry_run=dry_run)
+
+    print('\n=== Both passes complete ===', flush=True)
