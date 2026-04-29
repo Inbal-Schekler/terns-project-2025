@@ -58,7 +58,7 @@ Right-click → *Run with PowerShell*. This registers two daily tasks:
 | `TernScan_Morning` | 10:01 daily | Runs `run_scan.py` → full scan at 10:01:50 |
 | `TernScan_Afternoon` | 15:01 daily | Runs `run_scan.py` → full scan at 15:01:50 |
 
-`run_scan.py` controls the south camera (181) via ONVIF. Each time it runs, it performs **two complete scan passes** with a 5.5-minute rest between them, so each video recording contains two extractable tours. The north camera (191) has its own internal schedule.
+`run_scan.py` controls the south camera (181) via ONVIF because we couldn't create scans on accurate times with the new south camera system from 2026. Each time it runs, it performs **two complete scan passes** with a 5.5-minute rest between them, so each video recording contains two extractable tours. The north camera (191) has its own internal schedule.
 
 **Scan structure per session:**
 - Pass 1 → Tour 1 (32 flags × 15s) + 10s gap + Tour 2 (15 flags × 15s) ≈ 12 min
