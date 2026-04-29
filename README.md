@@ -1,167 +1,299 @@
-# Project Title
+# Tern Colony Monitoring System
 
-Automatic Detecting and counting endangered colonial breeding terns using machine learning methods
+Automated system for detecting, counting, and mapping breeding seabirds at the Atlit colony (Israel), focusing on two endangered species: the **Common Tern** (*Sterna hirundo*) and the **Little Tern** (*Sternula albifrons*).
 
-## Description
-In this project, we developed a fully automated deep-learning-based algorithm to identify, count, and map breeding seabirds, focusing on two tern species in Israel: the vulnerable Common Tern (Sterna hirundo) and the endangered Little Tern (Sternula albifrons) in a challenging environment, in a large and densely populated breeding colony containing breeding pairs of two visually similar species. Using YOLOv8 for initial object detection, we enhanced classification performance by integrating ecological and behavioral features, including spatial fidelity, movement patterns, and size through camera calibration techniques.
-For a detailed description of the methods and results, please refer to our paper.
+The system uses two PTZ cameras to scan the colony automatically, downloads the recordings from an NVR server, converts them to images, and runs a deep-learning pipeline to count and track terns. A second pipeline for detecting dead chicks is currently in development.
 
-## Mapping Camera Positions to Real-World Coordinates
-We setup preset camera positions with specific zoom, yaw and pitch settings, enabling automated scanning tours at predefined intervals and times between the present positions location. 
-Automated scans were conducted multiple times daily. Each camera focused on its designated area, with combined coverage of the entire island.  
-The cameras were calibrated using a drone image of the colony anchored to geographic coordinates. By utilizing the drone image along with recorded zoom levels, pitch, and yaw for each frame, we calculated the precise location of each pixel on the island. This calibration allowed us to convert pixel dimensions into centimeters, enabling the actual size of each bounding box to be calculated and incorporated as a feature in the classifier.  
-In this section, we describe the code parts that facilitate to map the camera positions into real-world coordinates.
+For a detailed description of the methods and results, see our paper.
 
-### Fetch camera positions PTZ parameters
-We use Python script (get_camera_ptz.py) to fetch the preset position PTZ parameters (zoom, pitch, and yaw) of the camera. The script should be executed while the scan is triggered and uses Dahua camera external API to fetch details. 
+---
 
-#### Script usage
-1. Navigate to the RealCoordinatesCalculator directory.
-2. Specify camera details in get_camera_ptz.ini.
-3. Run get_camera_ptz.py script with argument of delay (in seconds) between position change. 
-```bash
-Python get_camera_ptz.py -s 15
+## Repository Structure
+
+```
+terns-project-2025/
+│
+├── RealCoordinatesCalculator/   ← SHARED: PTZ scan control, camera calibration
+├── ConvertVideoToImage/         ← SHARED: NVR download, video-to-image conversion
+├── Utilities/                   ← SHARED: general helper functions
+│
+├── BreedingBirds/               ← Pipeline: counting and tracking breeding terns
+│   ├── YoloDetector/
+│   ├── TrackingTerns/
+│   ├── ClassifyTerns/
+│   ├── LabelsDistributionInFlags/
+│   └── FinalResults/
+│
+└── Chicks/                      ← Pipeline: detecting dead chicks (work in progress)
+    ├── YoloDetector/
+    ├── TrackingTerns/
+    ├── ClassifyTerns/
+    └── FinalResults/
 ```
 
-The script saves all PTZ details in a text file.
+The first two steps (scanning and video-to-image conversion) are **shared** — they feed into both the BreedingBirds and Chicks pipelines. After that, each pipeline follows its own analysis path.
 
+---
 
-### Camera PTZ adjusments
-In draw_ptz_on_drone.ipynb Notebook, we calibrate the camera to map positions into the real-world coordinates. We made small adjustments to the values based on deviations observed in the positions mapping on the island area. The notebook visualizes all positions' areas on drone image.
+## Prerequisites
 
-### Detecting Overlaps Between Position Areas
-The detect_overlaps.ipynb notebook identifies overlaps between camera positions to prevent multiple counts of the same tern from different camera positions.  
-The script saves all redundant areas in a JSON file (overlap_areas.json), which is used later when counting terns.
+- **Python 3.x** (Anaconda recommended) with packages: `requests`, `opencv-python`, `ultralytics`
+- **FFmpeg** installed at `C:\ffmpeg\bin\ffmpeg.exe`
+- **Windows** (Task Scheduler is used for automation)
+- Camera credentials stored in `RealCoordinatesCalculator/new_camera.ini` (not committed — see format at the bottom of this file)
 
+---
 
-## Models training process
+## Step 0 — One-Time Setup: Automate Scanning and Download
 
-### Training YOLOv8 for Species Detection
-We fine-tuned a YOLOv8 model to distinguish between Common Terns and Little Terns using their physical characteristics.
-A Jupyter Notebook (training_YOLOv8.ipynb) is provided to facilitate training using Ultralytics' YOLOv8. The training command is executed within the notebook to fine-tune the model on our dataset.
+Both the camera scan and the video download are fully automated via Windows Task Scheduler. Run each setup script **once** and they will run every day without manual intervention.
 
-#### Notebook Usage
-1. Navigate to the YoloDetector directory.
-2. Open the training_YOLOv8.ipynb notebook.
-3. Specify setting for run.
-4. Run all cells to start training the model.
+### 0a. Scan automation — `RealCoordinatesCalculator/`
 
-The trained model weights and logs are saved in the project output path defined in the Notebook.
+**Script:** `setup_scan_tasks.ps1`  
+Right-click → *Run with PowerShell*. This registers two daily tasks:
 
-### Training final classifier model to determine species
-We create a range of features that represent the track of the tagged tern. These features include integrated outputs from the YOLOv8 model, movement rate and detection rate, location probability and box dimensions in centimers.
+| Task | Trigger | What it does |
+|------|---------|--------------|
+| `TernScan_Morning` | 10:01 daily | Runs `run_scan.py` → full scan at 10:01:50 |
+| `TernScan_Afternoon` | 15:01 daily | Runs `run_scan.py` → full scan at 15:01:50 |
 
-1. Run steps 1 to 3 from 'Running the Algorithm' section on the scans where the tagged images were captured. These steps create tern tracks.
-2. Specify setting parameters in train_classifier.ini.
-3. Open train_classifier.ipynb Notebook.
-4. Run all cells.
+`run_scan.py` controls the south camera (181) via ONVIF. Each time it runs, it performs **two complete scan passes** with a 5.5-minute rest between them, so each video recording contains two extractable tours. The north camera (191) has its own internal schedule.
 
-This process associate tracks to the tagged terns and after that create all features that represents tracks. The notebook train and evaluate performance on multiple classifier models and saves the best-performing model.
+**Scan structure per session:**
+- Pass 1 → Tour 1 (32 flags × 15s) + 10s gap + Tour 2 (15 flags × 15s) ≈ 12 min
+- Rest: 329 seconds (~5.5 min)
+- Pass 2 → same as Pass 1 ≈ 12 min
+- Total: ~38 minutes per session
 
+> **Note:** `new_camera.ini` must be present in `RealCoordinatesCalculator/` before running. See the Camera Connection section at the bottom.
 
-## Running the Algorithm
-To run the algorithm, follow these steps to execute each notebook in the correct order.
+### 0b. Download automation — `ConvertVideoToImage/`
 
-### Downloading Scans
-To automatically download scans from both cameras twice a day, run extract_scans_auto.py in the ConvertVideoToImage directory.
+**Script:** `setup_download_task.ps1`  
+Right-click → *Run with PowerShell*. This registers two daily tasks:
 
-### 1. run_video_converter_2025.ipynb Notebook: Video-to-Image Conversion and Position Categorization
+| Task | Trigger | What it does |
+|------|---------|--------------|
+| `TernsCameraDownload_1030` | 10:30 daily | Downloads yesterday's scans for both cameras |
+| `TernsCameraDownload_1530` | 15:30 daily | Same — catches any retries |
 
-This notebook converts video scans captured at the colony into images and detects camera switches to categorize the images by position. It supports a conversion of multiple scans within a video, organizing them into separate directories.
+**Script:** `extrac_scans_auto.py`
 
-#### Notebook Usage
-1. Navigate to the ConvertVideoToImage directory.
-2. Specify the following settings in the run_video_converter.ini file:
-   - **dates**: Dates you want to process.
-   - **yolo_path**: Path to Yolo model used for detecting camera movement.
-3. Specify the following settings in the tours_details.json file:
-   - **videos_dir**: Path to the videos directory.
-   - **images_dir**: Path to the output images directory.
-4. Open the run_video_converter_2025.ipynb notebook.
-5. Run all cells.
+Downloads scan videos from the NVR server (Nx Witness) for each camera:
 
-### 2. yolo_runner.ipynb Notebook: YOLO Object Detection on Images
+| Camera | Retention on NVR | Days downloaded per run |
+|--------|-----------------|------------------------|
+| North (191) | ~1 day | 1 |
+| South (181) | ~7 days | 7 |
 
-This notebook applies the YOLO V8 object detection model to the categorized images from Notebook 1. The model is trained to detect the terns in each image. The results save for further analysis.
+The script skips files that already exist, so it is safe to run daily for both cameras. Videos are saved to:
+```
+F:\My Drive\tern_project\terns_movies\{year}\{camera_name}\
+```
 
-#### Notebook Usage
-1. Navigate to the YoloDetector directory.
-2. Specify the following settings in the yolo_runner.ini file:
-   - **dates**: Dates on which you want to detect terns.
-   - **images_dir**: Path to the input image directory.
-   - **result_dir**: Path to the output YOLO detection results directory.
-   - **images_chunk_size**: Number of images to process at one time in YOLO.
-3. Open the yolo_runner.ipynb notebook.
-4. Run all cells.
+The south camera (181) delivers HEVC from the NVR and is automatically transcoded to H.264 (using FFmpeg) so files are seekable and play on all software.
 
-### 3. track_scan_runner.ipynb Notebook: Tracking Terns in a Single Scan
-This notebook processes a one scan output from YOLO Object Detection to track individual terns across multiple images, creating a sequence of detections for each bird.
+---
 
-#### Notebook Usage
-1. Navigate to the TrackingTerns directory.
-2. Specify the following settings in the track_scan_runner.ini file:
-   - **dates**: Dates on which you want to track terns.
-   - **yolo_result_dir**: Path to the input YOLO results directory.
-   - **tracker_result_dir**: Path to the output tracking results directory.
-3. Open the track_scan_runner.ipynb notebook.
-4. Run all cells.
+## Step 1 — Video to Images — `ConvertVideoToImage/`
 
-## Option 1 - Daily Counting terns
+**Notebook:** `run_video_converter_2025.ipynb`
 
-### 4. daily_count_terns.ipynb Notebook: Daily Counting and Classifying Terns
+Converts each scan video into a folder of images, one image per second per flag position, organized by tour.
 
-This notebook classify and counts terns on colony on multiple one-scan outputs from one day. It makes aggregation of the results across different scans.
+### How it works
 
-#### Notebook Usage
-1. Navigate to the ClassifyTerns directory.
-2. Specify the following settings in the daily_count_terns.ini file:
-   - **date**: Date for which you want to classify and count terns.
-   - **classifier_model**: Path to the trained classifier model.
-   - **tracker_result_dir**: Path to the tracking results directory.
-   - **labels_distribution**: Path to the label distributions statistics file.
-3. Open the daily_count_terns.ipynb notebook.
-4. Run all cells.
+The converter uses a **time-based approach**: it reads the scan start time from the video filename, then skips through the video using calibrated timing values (dwell time per flag, camera movement time between flags). This replaced an older YOLO-based motion detection approach and is more reliable.
 
-## Option 2 - Daily Detecting breeding terns
+Each video produces:
+```
+ImagesDir/
+└── atlitcam181.stream_2025_05_23_10_01_50/
+    ├── tour0/
+    │   ├── flag92_0_....jpg
+    │   ├── flag92_1_....jpg
+    │   └── ...
+    └── tour1/
+        └── ...
+```
 
-### 5. classify_terns.ipynb Notebook: Classifying Tracks
-This notebook classify one-scan tracks detected in Notebook 3. The classifier is taken as input YOlO ouputs, track size in cm and location distribution. It saves the results on JSON files.
+### Configuration — `tours_details.json`
 
-#### Notebook Usage
-1. Navigate to the ClassifyTerns directory.
-2. Specify the following settings in the classify_terns.ini file:
-   - **date**: A date for which you want to classify terns.
-   - **classifier_model**: Path to the trained classifier model.
-   - **one_scan_result_dir**: Path to the input single-scan tracking results directory.
-   - **classification_result_dir**: Path to the classifier results dir
-   - **labels_distribution**: Path to the label distributions statistics file.
-3. Open the classify_terns.ipynb notebook.
-4. Run all cells.
+Before running, set the paths and verify the camera parameters in `tours_details.json`:
 
-### 6. track_breeding_terns_runner.ipynb Notebook: Tracking Breeding Terns
+| Field | Description |
+|-------|-------------|
+| `videos_dir` | Path to downloaded scan videos |
+| `images_dir` | Output path for extracted images |
+| `flags_ids` | Ordered list of flag numbers visited in one scan pass |
+| `margin_till_1st_tour` | Seconds to skip at the start of the video before the first tour begins |
+| `magin_between_tours` | Seconds to skip in the video between tour 0 and tour 1 |
 
-This notebook processes multiple one-scan outputs from part 3 to track terns across multiple scans. The tracks help identify breeding terns, which tend to remain in the same location over time.
+> **Important:** `magin_between_tours` must match `GAP_BETWEEN_SCANS` in `run_scan.py` (currently 329 seconds). If you change the rest gap in the scan script, update this value too.
 
-#### Notebook Usage
-1. Navigate to the TrackingTerns directory.
-2. Specify the following settings in the track_breeding_terns_runner.ini file:
-   - **date**: A date for which you want to track breeding terns.
-   - **one_scan_result_dir**: Path to the input single-scan tracking results directory.
-   - **mult_scans_result_dir**: Path to the output directory for multi-scan tracking results.
-   - **classification_result_dir**: Path to the classifier results dir
-   - **video_converter_dir**: Path to the images directory.
-3. Open the track_breeding_terns_runner.ipynb notebook.
-4. Run all cells.
+### Running
 
-### 7: report_breeding_terns.ipynb Notebook: Classifying and counting breeding terns
-This notebook classifies and counts breeding terns within the colony, using tracking data from Part 5 as input.
+1. Open `ConvertVideoToImage/run_video_converter_2025.ipynb` in Jupyter or Google Colab
+2. Update `videos_dir` and `images_dir` in `tours_details.json`
+3. Run all cells
 
-#### Notebook Usage
-1. Navigate to the FinalResults directory.
-2. Specify the following settings in the report_breeding_terns.ini file:
-   - **date**: Date for which you want to classify and count breeding terns.
-   - **breeding_tracks_dir**: Path to the breeding terns tracking results directory.
-   - **final_report_dir**: Path to the final breeding report result directory
-   - **overlap_areas**: Path to the overlap areas file.
-3. Open the report_breeding_terns.ipynb notebook.
-4. Run all cells.
+---
+
+## Step 2 — YOLO Detection — `BreedingBirds/YoloDetector/`
+
+**Notebook:** `yolo_runner.ipynb`
+
+Runs a trained YOLOv8 model on the extracted images to detect terns. Results are saved per image for use in the tracking step.
+
+**Configuration:** `yolo_runner.ini`
+
+| Field | Description |
+|-------|-------------|
+| `dates` | Dates to process |
+| `images_dir` | Path to images from Step 1 |
+| `result_dir` | Output path for YOLO detection results |
+| `images_chunk_size` | Number of images per batch |
+
+---
+
+## Step 3 — Single-Scan Tracking — `BreedingBirds/TrackingTerns/`
+
+**Notebook:** `track_scan_runner.ipynb`
+
+Tracks individual terns across the images of one scan, linking detections into tracks.
+
+**Configuration:** `track_scan_runner.ini`
+
+| Field | Description |
+|-------|-------------|
+| `dates` | Dates to process |
+| `yolo_result_dir` | Path to YOLO results from Step 2 |
+| `tracker_result_dir` | Output path for single-scan tracks |
+
+---
+
+## From here: choose your pipeline
+
+---
+
+## Breeding Birds Pipeline — `BreedingBirds/`
+
+### Option A — Daily Tern Count
+
+**Step 4A: `BreedingBirds/ClassifyTerns/daily_count_terns.ipynb`**
+
+Classifies and counts terns across all scans of one day. Aggregates results from multiple scan tracks.
+
+**Configuration:** `daily_count_terns.ini`
+
+| Field | Description |
+|-------|-------------|
+| `date` | Date to process |
+| `classifier_model` | Path to trained classifier model |
+| `tracker_result_dir` | Path to single-scan tracking results |
+| `labels_distribution` | Path to label distribution statistics file |
+
+---
+
+### Option B — Breeding Tern Detection (multi-scan)
+
+**Step 4B: `BreedingBirds/ClassifyTerns/classify_terns.ipynb`**
+
+Classifies single-scan tracks. Uses YOLO outputs, track size (in cm), and location distribution as features.
+
+**Configuration:** `classify_terns.ini`
+
+| Field | Description |
+|-------|-------------|
+| `date` | Date to process |
+| `classifier_model` | Path to trained classifier model |
+| `one_scan_result_dir` | Path to single-scan tracking results |
+| `classification_result_dir` | Output path for classification results |
+| `labels_distribution` | Path to label distribution statistics file |
+
+---
+
+**Step 5B: `BreedingBirds/TrackingTerns/track_breeding_terns_runner.ipynb`**
+
+Tracks terns across multiple scans. Breeding terns are identified by spatial fidelity — they return to the same location across scans.
+
+**Configuration:** `track_breeding_terns_runner.ini`
+
+| Field | Description |
+|-------|-------------|
+| `date` | Date to process |
+| `one_scan_result_dir` | Path to single-scan tracking results |
+| `mult_scans_result_dir` | Output path for multi-scan tracking results |
+| `classification_result_dir` | Path to classification results |
+| `video_converter_dir` | Path to images directory |
+
+---
+
+**Step 6B: `BreedingBirds/FinalResults/report_breeding_terns.ipynb`**
+
+Classifies and counts breeding terns using multi-scan tracking data. Applies overlap correction between camera positions.
+
+**Configuration:** `report_breeding_terns.ini`
+
+| Field | Description |
+|-------|-------------|
+| `date` | Date to process |
+| `breeding_tracks_dir` | Path to multi-scan tracking results |
+| `final_report_dir` | Output path for final report |
+| `overlap_areas` | Path to `overlap_areas.json` |
+
+---
+
+## Chicks Pipeline — `Chicks/` *(work in progress)*
+
+This pipeline detects and counts dead chicks in the colony. Steps 0–1 (scanning and video-to-image conversion) are shared with the BreedingBirds pipeline. The analysis notebooks are in `Chicks/` and follow a similar structure.
+
+---
+
+## Camera Calibration — `RealCoordinatesCalculator/`
+
+Each camera flag (preset position) is mapped from camera pixel space to physical coordinates on a drone image of the colony. This mapping is used to calculate bounding box sizes in centimeters and to correct for overlapping fields of view between flags.
+
+See `RealCoordinatesCalculator/README.md` for full details on the calibration process, including the 2026 south camera replacement and recalibration.
+
+Key outputs:
+- `PTZCamValues181_mod.txt` — south camera world angles + focal length per flag
+- `PTZCamValues191_mod.txt` — north camera world angles + focal length per flag
+- `overlap_areas.json` — overlapping areas between flag positions (used in final count)
+
+### Detecting overlaps between flag positions
+**Notebook:** `detect_overlaps.ipynb`  
+Identifies areas seen by more than one flag, to avoid double-counting terns. Saves results to `overlap_areas.json`.
+
+---
+
+## Model Training
+
+### YOLOv8 — species detection
+**Notebook:** `BreedingBirds/yolov8_costum_training.ipynb`  
+Fine-tunes YOLOv8 to distinguish Common Terns from Little Terns using physical characteristics.
+
+### Classifier — breeding vs non-breeding
+Features used: YOLO outputs, track size (cm), movement rate, detection rate, location probability.
+
+1. Run Steps 1–3 on scans where tagged birds were captured
+2. Set parameters in `train_classifier.ini`
+3. Open and run `train_classifier.ipynb`
+
+---
+
+## Camera Connection
+
+Camera credentials are stored in `RealCoordinatesCalculator/new_camera.ini` (not committed to git).
+
+Create the file with this format:
+```ini
+[General]
+CAM_IP=2.54.101.27
+CAM_PORT=8080
+USER_NAME=admin
+PASSWORD=your_password_here
+```
+
+NVR server: `212.179.113.90:7001` — credentials in `extrac_scans_auto.py`.
