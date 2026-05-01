@@ -45,12 +45,14 @@ def normalize_timestamp_text(text):
     return None
 
 
-def extract_timestamp_easyocr(frame):
+def extract_timestamp_easyocr(frame, debug=False):
     h, w = frame.shape[:2]
     x1, y1, x2, y2 = w - 430, 0, w, 60
     cropped = frame[y1:y2, x1:x2]
     result = reader.readtext(cropped, detail=0)
     text = " ".join(result)
+    if debug:
+        print(f"  [OCR raw] '{text}'")
     return normalize_timestamp_text(text)
 
 
@@ -83,7 +85,9 @@ class VideoConverter:
                     return False
                 frame = last_read_frame
 
-            ts = extract_timestamp_easyocr(frame)
+            ts = extract_timestamp_easyocr(frame, debug=(check_num < 5))
+            if not ts:
+                print(f"  [check {check_num}] OCR read nothing parseable")
             if ts:
                 detected_time = ts.time()
                 if not first_detected_ts:
@@ -133,7 +137,7 @@ class VideoConverter:
 
         if not self._skip_until_timestamp(video, camera_id, target_time_str, video_path):
             print("⚠️ Skipping conversion due to invalid timestamp.")
-            return
+            sys.exit(1)
 
         main_dir = f'{output_dir}/{video_name}'
         os.makedirs(main_dir, exist_ok=True)
