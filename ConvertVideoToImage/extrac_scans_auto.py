@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 from requests.auth import HTTPDigestAuth
 import os
 from datetime import datetime, timedelta
@@ -16,12 +16,12 @@ ffmpeg_path = r"C:\ffmpeg\bin\ffmpeg.exe"
 
 # Camera configurations.
 # days_to_download matches how long the server retains footage per camera.
-# Both cameras output HEVC — transcoded to H.264 so files play without extra codecs.
-# The "already exists" check makes this safe to run daily — skips already-downloaded files.
+# Both cameras output HEVC â€” transcoded to H.264 so files play without extra codecs.
+# The "already exists" check makes this safe to run daily â€” skips already-downloaded files.
 cameras = [
 #cameras = [cam for cam in[
     {
-        "name": "191",  # North camera (port 9090, H.264 from NVR) — server stores ~1 day
+        "name": "191",  # North camera (port 9090, H.264 from NVR) â€” server stores ~1 day
         "camera_id": "12e18ec2-2fa2-0985-ca44-e5b772c8909c",
         "duration": 2280,
         "base_folder": r"F:\My Drive\tern_project\terns_movies",
@@ -29,12 +29,12 @@ cameras = [
         "times_to_download": ["09:59:50", "14:59:50"]
     },
     {
-        "name": "181",  # South camera (port 8080, HEVC from NVR) — server stores ~7 days
+        "name": "181",  # South camera (port 8080, HEVC from NVR) â€” server stores ~7 days
         "camera_id": "3ae02e93-9fb2-9d94-d1d7-5f23a05dc19b",
         "duration": 1990,
         "base_folder": r"F:\My Drive\tern_project\terns_movies",
         "days_to_download": 7,
-        "times_to_download": ["10:01:50", "15:01:50"]
+        "times_to_download": ["10:01:30", "15:01:30"]
     }
 ]
 #] if cam["name"] == "181"]
@@ -89,7 +89,7 @@ for cam in cameras:
                     os.remove(temp_file)
                 continue
 
-            # Both cameras deliver HEVC from the NVR — transcode to H.264 for universal playback.
+            # Both cameras deliver HEVC from the NVR â€” transcode to H.264 for universal playback.
             # North camera (191) already arrives as H.264 from this NVR, so copy is enough for it.
             print("Fixing video (making it seekable)...")
             if cam["name"] == "181":
