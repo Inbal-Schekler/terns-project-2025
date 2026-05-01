@@ -30,15 +30,15 @@ def normalize_timestamp_text(text):
     text = re.sub(r'\s+', ' ', text).strip()
 
     patterns = [
-        re.search(r'(\d{2})[-/](\d{2})[-/](\d{4})[^\d]?(\d{2}):(\d{2}):(\d{2})', text),
-        re.search(r'(\d{2})(\d{2})(\d{4})\s*(\d{2}):(\d{2}):(\d{2})', text)
+        (re.search(r'(\d{4})[-/](\d{2})[-/](\d{2})[^\d]?(\d{2}):(\d{2}):(\d{2})', text), '%Y-%m-%d %H:%M:%S', lambda g: f"{g[0]}-{g[1]}-{g[2]} {g[3]}:{g[4]}:{g[5]}"),
+        (re.search(r'(\d{2})[-/](\d{2})[-/](\d{4})[^\d]?(\d{2}):(\d{2}):(\d{2})', text), '%d-%m-%Y %H:%M:%S', lambda g: f"{g[0]}-{g[1]}-{g[2]} {g[3]}:{g[4]}:{g[5]}"),
+        (re.search(r'(\d{2})(\d{2})(\d{4})\s*(\d{2}):(\d{2}):(\d{2})', text),             '%d-%m-%Y %H:%M:%S', lambda g: f"{g[0]}-{g[1]}-{g[2]} {g[3]}:{g[4]}:{g[5]}"),
     ]
 
-    for pattern in patterns:
+    for pattern, fmt, build in patterns:
         if pattern:
-            day, month, year, hour, minute, second = pattern.groups()
             try:
-                return datetime.strptime(f"{day}-{month}-{year} {hour}:{minute}:{second}", "%d-%m-%Y %H:%M:%S")
+                return datetime.strptime(build(pattern.groups()), fmt)
             except ValueError:
                 continue
 
