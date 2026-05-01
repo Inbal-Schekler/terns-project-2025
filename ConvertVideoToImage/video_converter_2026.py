@@ -16,8 +16,10 @@ max_displayed_frames = defaultdict(lambda: 11, {
 })
 
 known_scan_start_times = {
-    "191": {"morning": "09:59:50", "noon": "14:59:50"},
-    "181": {"morning": "10:01:50", "noon": "15:01:50"},
+    #"191": {"morning": "09:59:50", "noon": "14:59:50"},
+    "191": {"morning": "10:00:10", "noon": "10:00:10"},
+    #"181": {"morning": "10:01:50", "noon": "15:01:50"},
+    "181": {"morning": "10:01:42", "noon": "15:01:42"},
 }
 
 reader = easyocr.Reader(['en'])
@@ -124,8 +126,9 @@ class VideoConverter:
     def convert_video(self, video_path, flags_ids, tour_length, magin_between_tours,
                       margin_till_1st_tour, flags_to_shelve, output_dir):
         video = cv2.VideoCapture(video_path)
-        fps = 25
-        print(f"âš™ï¸ Forcing FPS to: {fps}")
+        fps = int(video.get(cv2.CAP_PROP_FPS))
+        fps = 25 if fps <= 0 or fps > 60 else fps
+        print(f"âš™ï¸ Detected FPS: {fps}")
 
         video_name = os.path.splitext(os.path.basename(video_path))[0]
         match = re.search(r'atlitcam(\d+)', video_name)
