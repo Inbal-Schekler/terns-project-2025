@@ -160,8 +160,8 @@ class VideoConverter:
             while flag_num < len(flags_ids):
                 ret, curr_frame = video.read()
                 if not ret:
-                    print("âš ï¸ The video has missing frames, possibly caused by network issues during recording.")
-                    sys.exit(1)
+                    print("Video ended before all flags were processed - extracting what was captured.")
+                    break
 
                 if frames_counter % fps == 0:
                     filename = f"flag{flags_ids[flag_num]}_{int(frame_num)}_{video_name}.jpg"
