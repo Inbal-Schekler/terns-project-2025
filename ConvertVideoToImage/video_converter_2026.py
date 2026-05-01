@@ -24,7 +24,7 @@ reader = easyocr.Reader(['en'])
 
 
 def normalize_timestamp_text(text):
-    text = text.replace('*', ':').replace('/', '-').replace('–', '-').replace('—', '-')
+    text = text.replace('*', ':').replace('/', '-').replace('â€“', '-').replace('â€”', '-')
     text = re.sub(r'[^0-9:\-.\s]', '', text)
     text = text.replace('.', ':')
     text = re.sub(r'\s+', ' ', text).strip()
@@ -68,7 +68,7 @@ class VideoConverter:
 
     def _skip_until_timestamp(self, video, camera_id, target_time_str, video_path):
         target_time = datetime.strptime(target_time_str, "%H:%M:%S")
-        print(f"🎯 Target time: {target_time.time()}")
+        print(f"ðŸŽ¯ Target time: {target_time.time()}")
 
         max_checks = 60
         fps = 25
@@ -81,7 +81,7 @@ class VideoConverter:
             for _ in range(fps):
                 ret, last_read_frame = video.read()
                 if not ret:
-                    print("⚠️ End of video reached before finding timestamp.")
+                    print("âš ï¸ End of video reached before finding timestamp.")
                     return False
                 frame = last_read_frame
 
@@ -94,8 +94,8 @@ class VideoConverter:
                     first_detected_ts = detected_time
 
                 if detected_time == target_time.time():
-                    print(f"🕐 First detected timestamp: {first_detected_ts}")
-                    print(f"✅ Reached target timestamp: {detected_time}")
+                    print(f"ðŸ• First detected timestamp: {first_detected_ts}")
+                    print(f"âœ… Reached target timestamp: {detected_time}")
                     return True
 
                 if detected_time < target_time.time():
@@ -106,26 +106,26 @@ class VideoConverter:
                     break
 
         if last_valid_time and last_valid_frame_pos is not None:
-            print(f"🕐 First detected timestamp: {first_detected_ts}")
-            print(f"⚠️ Couldn't reach exact time. Rewinding to {last_valid_time}, frame {int(last_valid_frame_pos)}")
+            print(f"ðŸ• First detected timestamp: {first_detected_ts}")
+            print(f"âš ï¸ Couldn't reach exact time. Rewinding to {last_valid_time}, frame {int(last_valid_frame_pos)}")
             video.set(cv2.CAP_PROP_POS_FRAMES, last_valid_frame_pos)
             t1 = datetime.combine(datetime.today(), last_valid_time)
             t2 = datetime.combine(datetime.today(), target_time.time())
             seconds_to_skip = (t2 - t1).total_seconds()
-            print(f"⏩ Skipping ahead by {seconds_to_skip:.2f} seconds to reach target.")
+            print(f"â© Skipping ahead by {seconds_to_skip:.2f} seconds to reach target.")
             self._skip_seconds(video, seconds_to_skip)
             return True
 
         if first_detected_ts:
-            print(f"🕐 First detected timestamp: {first_detected_ts}")
-        print(f"❌ Target timestamp {target_time.time()} not found or approximated.")
+            print(f"ðŸ• First detected timestamp: {first_detected_ts}")
+        print(f"âŒ Target timestamp {target_time.time()} not found or approximated.")
         return False
 
     def convert_video(self, video_path, flags_ids, tour_length, magin_between_tours,
                       margin_till_1st_tour, flags_to_shelve, output_dir):
         video = cv2.VideoCapture(video_path)
         fps = 25
-        print(f"⚙️ Forcing FPS to: {fps}")
+        print(f"âš™ï¸ Forcing FPS to: {fps}")
 
         video_name = os.path.splitext(os.path.basename(video_path))[0]
         match = re.search(r'atlitcam(\d+)', video_name)
@@ -136,21 +136,21 @@ class VideoConverter:
         target_time_str = known_scan_start_times[camera_id][scan_type]
 
         if not self._skip_until_timestamp(video, camera_id, target_time_str, video_path):
-            print("⚠️ Skipping conversion due to invalid timestamp.")
+            print("âš ï¸ Skipping conversion due to invalid timestamp.")
             sys.exit(1)
 
-        main_dir = f'{output_dir}/{video_name}'
+        main_dir = f'{output_dir}/{camera_id}/{video_name}'
         os.makedirs(main_dir, exist_ok=True)
-        print(f"📂 Created main directory: {main_dir}")
+        print(f"ðŸ“‚ Created main directory: {main_dir}")
         sys.stdout.flush()
 
         for tour_num in range(2):
             if tour_num > 0:
                 self._skip_seconds(video, magin_between_tours)
 
-            tour_dir = f'{output_dir}/{video_name}/tour{tour_num}/'
+            tour_dir = f'{output_dir}/{camera_id}/{video_name}/tour{tour_num}/'
             os.makedirs(tour_dir, exist_ok=True)
-            print(f"📂 Created tour directory: {tour_dir}")
+            print(f"ðŸ“‚ Created tour directory: {tour_dir}")
             sys.stdout.flush()
 
             frame_num = 0
@@ -160,7 +160,7 @@ class VideoConverter:
             while flag_num < len(flags_ids):
                 ret, curr_frame = video.read()
                 if not ret:
-                    print("⚠️ The video has missing frames, possibly caused by network issues during recording.")
+                    print("âš ï¸ The video has missing frames, possibly caused by network issues during recording.")
                     sys.exit(1)
 
                 if frames_counter % fps == 0:

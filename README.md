@@ -132,9 +132,19 @@ Before running, set the paths and verify the camera parameters in `tours_details
 
 > **Important:** `magin_between_tours` must match `GAP_BETWEEN_SCANS` in `run_scan.py` (currently 329 seconds). If you change the rest gap in the scan script, update this value too.
 
+
+### Configuration -- `run_video_converter.ini`
+
+Before running, set the dates you want to process:
+
+| Field | Description |
+|-------|-------------|
+| `dates` | Comma-separated list of dates to process, in `YYYY_MM_DD` format (e.g. `2026_04_30,2026_05_01`) |
+
+> **Note:** The `yolo_path` field is present in the file but is no longer used in the 2026 version (OCR-based scan detection replaced YOLO-based motion detection).
 ### Running
 
-1. Open `ConvertVideoToImage/run_video_converter_2025.ipynb` in Jupyter or Google Colab
+1. Open `ConvertVideoToImage/run_video_converter_2026.ipynb` (2026, OCR-based) or `run_video_converter_2025.ipynb` (2025, time-based) in Jupyter or Google Colab
 2. Update `videos_dir` and `images_dir` in `tours_details.json`
 3. Run all cells
 
